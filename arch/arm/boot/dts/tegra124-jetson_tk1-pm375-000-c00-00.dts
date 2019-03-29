@@ -1,0 +1,299 @@
+/dts-v1/;
+
+#include "tegra124-soc-shield.dtsi"
+/* ↓ DONE ↓ */
+#include "tegra124-platforms/tegra124-tn8-keys-e1780-1100-a02.dtsi"
+/* ↓ DONE ↓ */
+#include "tegra124-platforms/tegra124-jetson_tk1-gpio-pm375-0000-c00-00.dtsi"
+/* ↓ DONE ↓ */
+#include "tegra124-platforms/tegra124-jetson_tk1-pinmux-pm375-0000-c00-00.dtsi"
+#include "tegra124-platforms/tegra124-jetson-power-tree-pm375-0000-c00.dtsi"
+#include "panel-p-wuxga-10-1.dtsi"
+#include "tegra124-platforms/tegra124-laguna-hdmi-pm375-1000-a00.dtsi"
+/* #include "tegra124-platforms/tegra124-pm359-camera-a00.dtsi" */
+
+/ {
+	model = "Toradex Apalis TK1 on Apalis Evaluation Board";
+	compatible = "nvidia,jetson-tk1",
+			"toradex,apalis-tk1-v1.2-eval", "toradex,apalis-tk1-eval",
+			"toradex,apalis-tk1", "nvidia,tegra124";
+	nvidia,dtsfilename = __FILE__;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		bootargs = "tegraid=40.0.0.00.00 vmalloc=256M video=tegrafb console=ttyS0,115200n8 earlyprintk";
+	};
+
+	psci {
+		status = "disabled";
+	};
+
+	firmware {
+		android {
+			compatible = "android,firmware";
+			hardware = "tegra";
+		};
+	};
+
+	host1x {
+		/* tegradc.0 */
+		dc@54200000 {
+			status = "okay";
+			nvidia,dc-flags = <TEGRA_DC_FLAG_ENABLED>;
+			nvidia,emc-clk-rate = <144000000>;
+			nvidia,cmu-enable = <1>;
+			nvidia,low-v-win = <0x2>;
+			nvidia,fb-bpp = <32>; /* bits per pixel */
+			nvidia,fb-flags = <TEGRA_FB_FLIP_ON_PROBE>;
+
+			/* nvidia,dc-or-node = "/host1x/sor"; */
+
+			/* avdd_dsi_csi-supply = <&as3722_ldo2>; */
+			/* avdd_lcd-supply = <&as3722_gpio4_supply>; */
+			/* dvdd_lcd-supply = <&reg_1v8_supply>; */
+			/* vdd_lcd_bl-supply = <&vdd_lcd_bl>; */
+			/* vdd_lcd_bl_en-supply = <&vdd_lcd_bl_en>; */
+		};
+		/* tegradc.1 */
+		dc@54240000 {
+			status = "okay";
+			nvidia,dc-flags = <TEGRA_DC_FLAG_ENABLED>;
+			nvidia,emc-clk-rate = <300000000>;
+			nvidia,fb-bpp = <32>; /* bits per pixel */
+			nvidia,fb-flags = <TEGRA_FB_FLIP_ON_PROBE>;
+
+			nvidia,dc-or-node = "/host1x/sor1";
+
+			avdd_hdmi-supply = <&as3722_sd4>;
+			avdd_hdmi_pll-supply = <&avdd_hdmi_pll>;
+			vdd_hdmi_5v0-supply = <&vdd_hdmi>;
+		};
+		dsi {
+			nvidia,dsi-controller-vs = <1>;
+			status = "okay";
+			panel-p-wuxga-10-1 {
+				nvidia,dsi-dpd-pads = <DSIC_DPD_EN DSID_DPD_EN>;
+				nvidia,panel-rst-gpio = <&gpio TEGRA_GPIO(H, 3) 0>; /* PH3 */
+				nvidia,panel-bl-pwm-gpio = <&gpio TEGRA_GPIO(H, 1) 0>; /* PH1 */
+			};
+		};
+	};
+
+	/* TBD */
+	pinmux@70000868 {
+		pinctrl-names = "default", "drive", "unused", "suspend";
+		pinctrl-3 = <&pinmux_suspend>;
+
+		/* Change the pin dap_mclk1_req to required configurations */
+		unused_lowpower {
+			dap_mclk1_req_pee2 {
+				nvidia,pins = "dap_mclk1_req_pee2";
+				nvidia,function = "sata";
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
+		/* On suspend, make dap_mclk1_req to pull up */
+		pinmux_suspend: pins_on_suspend {
+			dap_mclk1_req_pee2 {
+				nvidia,pins = "dap_mclk1_req_pee2";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+			};
+		};
+	};
+
+	/* Apalis UART1 */
+	serial@70006000 {
+		compatible = "nvidia,tegra114-uart", "nvidia,tegra20-uart";
+		console-port;
+		sqa-automation-port;
+		status = "okay";
+	};
+
+	/* Apalis UART2 */
+	serial@70006040 {
+		compatible = "nvidia,tegra114-hsuart";
+		status = "okay";
+	};
+
+	/* Apalis UART3 */
+	serial@70006200 {
+		compatible = "nvidia,tegra114-hsuart";
+		status = "okay";
+	};
+
+	/* Apalis UART4 */
+	serial@70006300 {
+		compatible = "nvidia,tegra114-hsuart";
+		status = "okay";
+	};
+
+	/*
+	 * GEN1_I2C: I2C1_SDA/SCL on MXM3 pin 209/211 (e.g. RTC on carrier
+	 * board)
+	 */
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		pcie-switch@58 {
+			compatible = "plx,pex8605";
+			reg = <0x58>;
+		};
+
+		/* M41T0M6 real time clock on carrier board */
+		rtc@68 {
+			compatible = "st,m41t0";
+			reg = <0x68>;
+		};
+	};
+
+	/* PWR_I2C: power I2C to audio codec, PMIC and temperature sensor */
+	i2c@7000d000 {
+		nvidia,bit-banging-xfer-after-shutdown;
+	};
+
+	memory@0x80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+
+	/* TBD */
+	camera-pcl {
+		profiles {
+			ov4689@2_0036 {
+				use_of_node = "yes";
+				reset-gpios = <&gpio TEGRA_GPIO(BB, 3) 0>;
+				cam1-gpios = <&gpio TEGRA_GPIO(BB, 5) 0>;
+			};
+			imx185@2_001A {
+				use-of-node = "yes";
+				cam1-gpios = <&gpio TEGRA_GPIO(BB, 5) 0>;
+			};
+		};
+		dpd {
+			default-enable;
+		};
+	};
+
+	/* SPI1: Apalis SPI1 */
+	spi@7000d400 {
+		status = "disabled";
+		spi-max-frequency = <25000000>;
+
+		spidev0: spidev@0 {
+			status = "disabled";
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <25000000>;
+		};
+	};
+
+	/* SPI2: MCU SPI */
+	spi@7000d600 {
+		status = "disabled";
+		spi-max-frequency = <6000000>;
+
+		k20mcu: apalis-tk1-k20@1 {
+			status = "disabled";
+			compatible = "toradex,apalis-tk1-k20";
+			reg = <1>;
+			spi-max-frequency = <6000000>;
+			interrupt-parent =<&gpio>;
+			interrupts = <TEGRA_GPIO(K, 2) IRQ_TYPE_EDGE_FALLING>;
+			rst-gpio = <&gpio TEGRA_GPIO(BB, 6) GPIO_ACTIVE_HIGH>;
+
+			/* GPIO based CS used to enter K20 EzPort mode */
+			ezport-cs-gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
+			/* extra INT lines between K20 and TK1 */
+			int2-gpio = <&gpio TEGRA_GPIO(J, 2) GPIO_ACTIVE_HIGH>;
+			int3-gpio = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_HIGH>;
+			int4-gpio = <&gpio TEGRA_GPIO(J, 0) GPIO_ACTIVE_HIGH>;
+
+			toradex,apalis-tk1-k20-uses-adc;
+			toradex,apalis-tk1-k20-uses-can;
+			toradex,apalis-tk1-k20-uses-gpio;
+			toradex,apalis-tk1-k20-uses-tsc;
+
+			controller-data {
+				nvidia,enable-hw-based-cs;
+				nvidia,cs-setup-clk-count = <12>;
+				nvidia,cs-hold-clk-count = <12>;
+			};
+		};
+
+		/*
+		 * spidev for K20 EzPort, can be used with custom firmware for
+		 * userspace K20 applications
+		 */
+		spidev2: spidev@2 {
+			status = "disabled";
+			compatible = "spidev";
+			reg = <2>;
+			spi-max-frequency = <2000000>;
+		};
+	};
+
+	/* SPI4: Apalis SPI2 */
+	spi@7000da00 {
+		status = "disabled";
+		spi-max-frequency = <25000000>;
+
+		spidev3: spidev@0 {
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <25000000>;
+		};
+	};
+
+	pmc@7000e400 {
+		status = "okay";
+		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <0>;
+		nvidia,cpu-pwr-good-time = <500>;
+		nvidia,cpu-pwr-off-time = <300>;
+		nvidia,core-pwr-good-time = <3845 3845>;
+		nvidia,core-pwr-off-time = <2000>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
+		nvidia,lp0-vec = <0xf46ff000 2064>;
+	};
+
+	pcie-controller {
+		nvidia,port0_status = <1>;
+		nvidia,port1_status = <1>;
+		hvdd_pex-supply = <&reg_3v3>;
+		avdd_pex_pll-supply = <&as3722_sd4>;
+		status = "disabled";
+	};
+
+	sata@0x70020000 {
+		nvidia,enable-sata-port;
+		nvidia,sata-connector-type=<STANDARD_SATA>;
+		vdd_sata-supply = <&as3722_sd4>;
+		avdd_sata_pll-supply =<&as3722_sd4>;
+		avdd_sata-supply = <&as3722_sd4>;
+		hvdd_sata-supply = <&reg_3v3>;
+		vddio_pex_sata-supply = <&reg_3v3>;
+		status = "okay";
+	};
+
+	/* TBD */
+	xusb@70090000 {
+		/* nvidia,uses_external_pmic;
+		nvidia,gpio_controls_muxed_ss_lanes; */
+		nvidia,gpio_ss1_sata = <0>;
+		nvidia,portmap = <0x0703>; /* SSP0, SSP1, USB2P0, USB2P1, USB2P2 */
+		nvidia,ss_portmap = <0x10>; /* SSP0 on USB2P0, SSP1 on USB2P1 */
+		nvidia,lane_owner = <6>; /* USB3P0 USB3P1 */
+		nvidia,ulpicap = <0>; /* No ulpi support. can we remove */
+		/* nvidia,supply_utmi_vbuses = "usb_vbus0", "usb_vbus1", "usb_vbus2";
+		nvidia,supply_s3p3v = "hvdd_usb";
+		nvidia,supply_s1p8v = "avdd_pll_utmip";
+		nvidia,supply_s1p05v = "avddio_usb"; */
+		status = "okay";
+	};
+};
